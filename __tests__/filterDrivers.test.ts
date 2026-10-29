@@ -13,13 +13,18 @@ describe('passenger discovery', () => {
     expect(result.find((d) => d.id === 'drv-010')).toBeUndefined();
   });
 
-  it('respects the radius and sorts available drivers first, then by distance', () => {
+  it('respects the radius and lists the nearest driver first', () => {
     const result = filterNearbyDrivers(drivers, KIGALI_DEMO_LOCATION, { ...base, radiusKm: 5 });
+    expect(result.length).toBeGreaterThan(5);
     expect(result.every((d) => d.distanceKm <= 5)).toBe(true);
-    const firstOffline = result.findIndex((d) => !d.isAvailable);
-    if (firstOffline > 0) expect(result.slice(firstOffline).every((d) => !d.isAvailable)).toBe(true);
-    const available = result.filter((d) => d.isAvailable).map((d) => d.distanceKm);
-    expect(available).toEqual([...available].sort((a, b) => a - b));
+    const distances = result.map((d) => d.distanceKm);
+    expect(distances).toEqual([...distances].sort((a, b) => a - b));
+  });
+
+  it('searches the whole country when the radius is lifted', () => {
+    const result = filterNearbyDrivers(drivers, KIGALI_DEMO_LOCATION, { ...base, radiusKm: Infinity, query: 'musanze' });
+    expect(result.length).toBe(3);
+    expect(result.every((d) => d.district === 'Musanze')).toBe(true);
   });
 
   it('can limit to available drivers and search by area', () => {

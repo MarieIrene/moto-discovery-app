@@ -4,6 +4,7 @@ import { Linking, StyleSheet } from 'react-native';
 import {
   AppText, Button, Card, ConfirmDialog, Divider, ListRow, Screen, ScreenHeader, Section, StatusBadge, SwitchRow, useToast,
 } from '@/components/ui';
+import { demoPlaceName } from '@/data/mock';
 import { getPermissionState, PermissionState, requestPermission } from '@/services/location';
 import { useSession } from '@/state/SessionProvider';
 import { useSettings } from '@/state/SettingsProvider';
@@ -13,7 +14,8 @@ const PERMISSION_LABEL: Record<PermissionState, string> = { granted: 'Allowed', 
 
 export default function Privacy() {
   const { settings, updateSettings } = useSettings();
-  const { session, deleteLocalAccount } = useSession();
+  const { session, profile, deleteLocalAccount } = useSession();
+  const place = demoPlaceName(profile?.district);
   const toast = useToast();
   const [permission, setPermission] = useState<PermissionState>('undetermined');
   const [confirmDelete, setConfirmDelete] = useState(false);
@@ -46,8 +48,8 @@ export default function Privacy() {
         </Card>
         <SwitchRow
           icon="pin"
-          title="Use Kigali demo location"
-          subtitle="Never read device location; use central Kigali instead"
+          title={`Use ${place} demo location`}
+          subtitle={`Never read device location; use ${place} town instead`}
           value={settings.useDemoLocation}
           onValueChange={(v) => updateSettings({ useDemoLocation: v })}
         />

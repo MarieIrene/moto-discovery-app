@@ -54,5 +54,31 @@ export function createMockReports(now: Date = new Date()): Report[] {
       createdAt: daysAgo(19, 18, now), notes: [],
       history: [{ id: 'h-005', from: 'open', to: 'resolved', by: 'Demo Admin', reason: 'Item returned to passenger.', at: daysAgo(18, 9, now) }],
     },
+    {
+      id: 'rep-101', reporterId: 'psg-musanze', reporterRole: 'passenger', subjectId: 'drv-musanze-3', subjectRole: 'driver',
+      category: 'overcharging', severity: 'medium', status: 'open',
+      description: 'Agreed 1,000 RWF from the bus park to the market, but the driver asked for 2,000 RWF when we arrived.',
+      createdAt: hoursAgo(5, now), notes: [], history: [],
+    },
+    {
+      id: 'rep-102', reporterId: 'psg-huye', reporterRole: 'passenger', subjectId: 'drv-huye-1', subjectRole: 'driver',
+      category: 'no_show', severity: 'low', status: 'under_review',
+      description: 'Driver accepted on the phone to collect me near the university, then switched off his phone.',
+      createdAt: daysAgo(2, 15, now), notes: [],
+      history: [{ id: 'h-101', from: 'open', to: 'under_review', by: 'Demo Admin', at: daysAgo(1, 9, now) }],
+    },
+    {
+      id: 'rep-103', reporterId: 'psg-rubavu', reporterRole: 'passenger', subjectId: 'drv-rubavu-2', subjectRole: 'driver',
+      category: 'unsafe_riding', severity: 'high', status: 'open',
+      description: 'Driver was riding very fast on the lake road and overtook a truck on a bend with me on the back.',
+      createdAt: hoursAgo(20, now), notes: [], history: [],
+    },
+    {
+      id: 'rep-104', reporterId: 'drv-kgl-05', reporterRole: 'driver', subjectId: 'psg-kgl-1', subjectRole: 'passenger',
+      category: 'other', severity: 'low', status: 'resolved',
+      description: 'Passenger refused to wear the helmet I offered and insisted on riding without it.',
+      createdAt: daysAgo(11, 18, now), notes: [],
+      history: [{ id: 'h-102', from: 'open', to: 'resolved', by: 'Demo Admin', reason: 'Passenger warned about helmet rules.', at: daysAgo(10, 9, now) }],
+    },
   ];
 }

@@ -2,13 +2,14 @@ import { router } from 'expo-router';
 import React, { useState } from 'react';
 import { StyleSheet, View } from 'react-native';
 import { AppText, Button, Icon, Screen } from '@/components/ui';
+import { demoPlaceName } from '@/data/mock';
 import { requestPermission } from '@/services/location';
 import { useSession } from '@/state/SessionProvider';
 import { useSettings } from '@/state/SettingsProvider';
 import { colors, spacing } from '@/theme';
 
 export default function LocationPermission() {
-  const { markLocationPromptSeen, activeRole } = useSession();
+  const { markLocationPromptSeen, activeRole, profile } = useSession();
   const { updateSettings } = useSettings();
   const [busy, setBusy] = useState(false);
 
@@ -36,7 +37,7 @@ export default function LocationPermission() {
       footer={
         <>
           <Button label="Allow location access" size="lg" fullWidth loading={busy} onPress={allow} testID="location-allow" />
-          <Button label="Not now, use a Kigali demo location" variant="ghost" onPress={skip} />
+          <Button label={`Not now, use a ${demoPlaceName(profile?.district)} demo location`} variant="ghost" onPress={skip} />
         </>
       }
     >

@@ -21,7 +21,7 @@ export default function AdminDashboard() {
   const availablePct = stats.drivers.total ? Math.round((stats.drivers.available / stats.drivers.total) * 100) : 0;
 
   return (
-    <AdminScreen title="Platform overview" subtitle="Demo data for Kigali">
+    <AdminScreen title="Platform overview" subtitle="Demo data across Rwanda’s 30 districts">
       <ChipGroup
         accessibilityLabel="Date range"
         value={range}

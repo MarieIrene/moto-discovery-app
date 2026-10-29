@@ -8,8 +8,13 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
  */
 export const SECURE_KEYS = {
   session: 'md_session_v1',
+  /** Legacy single-profile key, read once to move older installs to per-account profiles. */
   profile: 'md_profile_v1',
+  accounts: 'md_accounts_v1',
 } as const;
+
+/** Each account on the device keeps its own profile, so several people can sign in on one phone. */
+export const profileKey = (userId: string) => `md_profile_v2_${userId}`;
 
 const useFallback = Platform.OS === 'web';
 

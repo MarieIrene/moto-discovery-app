@@ -1,3 +1,4 @@
+import { DISTRICTS } from '@/data/rwanda';
 import { ContactRecord } from '@/types';
 import { daysAgo, hoursAgo } from './time';
 
@@ -27,7 +28,18 @@ export function createMockContacts(now: Date = new Date()): ContactRecord[] {
     ['drv-013', 'psg-010', daysAgo(24, 18, now)],
     ['drv-003', 'psg-002', daysAgo(27, 10, now)],
   ];
-  return rows.map(([driverId, passengerId, contactedAt], i) => ({
+  const kigali: [string, string, string][] = Array.from({ length: 17 }, (_, i) => [
+    `drv-kgl-${String(i + 1).padStart(2, '0')}`, `psg-kgl-${(i % 8) + 1}`, i % 2 ? hoursAgo(2 + i * 5, now) : daysAgo(1 + i, 8 + (i % 10), now),
+  ]);
+  // Two calls per district outside Kigali, spread over the last month.
+  const districts: [string, string, string][] = DISTRICTS.filter((d) => d.province !== 'Kigali City').flatMap((d, i) => {
+    const key = d.name.toLowerCase();
+    return [
+      [`drv-${key}-1`, `psg-${key}`, hoursAgo(1 + i * 3, now)],
+      [`drv-${key}-2`, `psg-${key}`, daysAgo(2 + (i % 26), 7 + (i % 12), now)],
+    ] as [string, string, string][];
+  });
+  return [...rows, ...kigali, ...districts].map(([driverId, passengerId, contactedAt], i) => ({
     id: `con-${String(i + 1).padStart(3, '0')}`,
     driverId,
     passengerId,
@@ -40,8 +52,11 @@ export function createMockContacts(now: Date = new Date()): ContactRecord[] {
  * Sample passenger calls attached to a newly registered driver (the person using this device),
  * so the driver dashboard has realistic "recent passenger contacts" without a backend.
  */
-export function createSampleContactsForDriver(driverId: string, now: Date = new Date()): ContactRecord[] {
-  const samples: [string, number][] = [['psg-002', 2], ['psg-005', 7], ['psg-001', 26], ['psg-010', 50]];
+export function createSampleContactsForDriver(driverId: string, district?: string, now: Date = new Date()): ContactRecord[] {
+  // The two most recent callers are from the driver's own district, so they're close by.
+  const d = DISTRICTS.find((x) => x.name === district);
+  const local = !d || d.province === 'Kigali City' ? ['psg-kgl-6', 'psg-005'] : [`psg-${d.name.toLowerCase()}`, `psg-${d.name.toLowerCase()}`];
+  const samples: [string, number][] = [[local[0]!, 2], [local[1]!, 7], ['psg-001', 26], ['psg-010', 50]];
   return samples.map(([passengerId, h], i) => ({
     id: `con-self-${driverId}-${i}`,
     driverId,

@@ -58,6 +58,12 @@ export interface Passenger {
   fullName: string;
   phone: string;
   district: string;
+  /**
+   * Last known pickup position. Shown only to drivers this passenger has called or messaged,
+   * so they can come to them.
+   */
+  location?: GeoPoint;
+  locationUpdatedAt?: string;
   accountStatus: AccountStatus;
   statusReason?: string;
   joinedAt: string;
@@ -72,7 +78,19 @@ export interface ContactRecord {
   method: 'call';
 }
 
-export type ReportStatus = 'open' | 'under_review' | 'resolved' | 'dismissed';
+/** One message in the chat between a passenger and a driver. */
+export interface ChatMessage {
+  id: string;
+  driverId: string;
+  passengerId: string;
+  sender: 'passenger' | 'driver';
+  body: string;
+  sentAt: string;
+  /** Set when the other person opens the conversation. */
+  readAt?: string;
+}
+
+export type ReportStatus ='open' | 'under_review' | 'resolved' | 'dismissed';
 export type ReportSeverity = 'low' | 'medium' | 'high';
 export type ReportCategory = 'unsafe_riding' | 'no_helmet' | 'overcharging' | 'harassment' | 'no_show' | 'other';
 

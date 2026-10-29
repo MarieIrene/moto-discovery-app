@@ -1,4 +1,5 @@
 import { z } from 'zod';
+import { findDistrict } from '@/data/rwanda';
 import { normalizeRwandaPhone } from './format';
 
 /** Rwandan mobile numbers: 07X XXX XXXX locally, or +250 7X XXX XXXX. */
@@ -16,13 +17,38 @@ export const fullName = z
   .max(60, 'Name must be 60 characters or fewer')
   .refine((v) => v.split(/\s+/).length >= 2, 'Enter your first and last name');
 
-export const signInSchema = z.object({ phone: rwandaPhone });
+/** At least 6 characters with a letter and a number: short enough to type on a phone, not a PIN. */
+export const password = z
+  .string()
+  .min(6, 'Use at least 6 characters')
+  .max(64, 'Use 64 characters or fewer')
+  .refine((v) => /[A-Za-z]/.test(v) && /\d/.test(v), 'Use letters and at least one number');
 
-export const registerSchema = z.object({
-  fullName,
+const passwordsMatch = (v: { password: string; confirmPassword: string }) => v.password === v.confirmPassword;
+const mismatch = { path: ['confirmPassword'], message: 'The passwords don’t match' };
+
+export const signInSchema = z.object({
   phone: rwandaPhone,
-  acceptTerms: z.boolean().refine((v) => v, 'Accept the terms to continue'),
+  password: z.string().min(1, 'Enter your password'),
 });
+
+export const registerSchema = z
+  .object({
+    fullName,
+    phone: rwandaPhone,
+    password,
+    confirmPassword: z.string().min(1, 'Type your password again'),
+    acceptTerms: z.boolean().refine((v) => v, 'Accept the terms to continue'),
+  })
+  .refine(passwordsMatch, mismatch);
+
+export const resetPasswordSchema = z
+  .object({
+    phone: rwandaPhone,
+    password,
+    confirmPassword: z.string().min(1, 'Type your password again'),
+  })
+  .refine(passwordsMatch, mismatch);
 
 export const otpSchema = z.object({
   code: z.string().trim().regex(/^\d{6}$/, 'Enter the 6-digit code'),
@@ -50,7 +76,7 @@ export const motorcycleSchema = z.object({
 
 export const profileSchema = z.object({
   fullName,
-  district: z.string().trim().min(2, 'Choose your district'),
+  district: z.string().trim().refine((v) => !!findDistrict(v), 'Choose your district'),
   email: z.union([z.literal(''), z.string().trim().email('Enter a valid email address')]),
 });
 
@@ -73,6 +99,7 @@ export const reportSchema = z.object({
 
 export type SignInForm = z.input<typeof signInSchema>;
 export type RegisterForm = z.input<typeof registerSchema>;
+export type ResetPasswordForm = z.input<typeof resetPasswordSchema>;
 export type OtpForm = z.input<typeof otpSchema>;
 export type ProfileFormInput = z.input<typeof driverProfileSchema>;
 export type ReportFormInput = z.input<typeof reportSchema>;

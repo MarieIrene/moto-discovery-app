@@ -1,8 +1,8 @@
 import React, { createContext, useCallback, useContext, useEffect, useMemo, useReducer, useRef, useState } from 'react';
-import { createSampleContactsForDriver, createSeedData } from '@/data/mock';
+import { createSampleContactsForDriver, createSampleMessagesForDriver, createSeedData, migrateSeedData } from '@/data/mock';
 import { createId } from '@/lib/id';
 import { readJson, STORAGE_KEYS, writeJson } from '@/services/storage';
-import { AccountStatus, Driver, GeoPoint, Passenger, Report, ReportStatus, VerificationStatus } from '@/types';
+import { AccountStatus, ChatMessage, Driver, GeoPoint, Passenger, Report, ReportStatus, VerificationStatus } from '@/types';
 import { ActionMeta, AppDataState, appDataReducer } from './reducer';
 
 interface AppDataContextValue {
@@ -17,12 +17,15 @@ export interface AppDataActions {
   setPassengerAccountStatus: (passengerId: string, status: AccountStatus, actor: string, reason?: string) => void;
   setDriverAvailability: (driverId: string, isAvailable: boolean, actor: string) => void;
   setDriverLocation: (driverId: string, location: GeoPoint) => void;
+  setPassengerLocation: (passengerId: string, location: GeoPoint) => void;
   upsertSelfDriver: (driver: Driver, isNew: boolean) => void;
   upsertSelfPassenger: (passenger: Passenger, isNew: boolean) => void;
   recordContact: (driverId: string, passengerId: string, actor: string) => void;
   submitReport: (report: Omit<Report, 'id' | 'createdAt' | 'notes' | 'history' | 'status'>, actor: string) => string;
   setReportStatus: (reportId: string, status: ReportStatus, actor: string, reason?: string) => void;
   addReportNote: (reportId: string, body: string, actor: string) => void;
+  sendMessage: (message: Omit<ChatMessage, 'id' | 'sentAt' | 'readAt'>) => void;
+  markConversationRead: (driverId: string, passengerId: string, reader: ChatMessage['sender']) => void;
   resetDemoData: () => void;
 }
 
@@ -38,7 +41,7 @@ export function AppDataProvider({ children, initialData }: { children: React.Rea
   useEffect(() => {
     if (initialData) return;
     readJson<AppDataState>(STORAGE_KEYS.appData).then((stored) => {
-      if (stored?.drivers && stored.passengers) dispatch({ type: 'hydrate', data: stored });
+      if (stored?.drivers && stored.passengers) dispatch({ type: 'hydrate', data: migrateSeedData(stored) });
       hydrated.current = true;
       setReady(true);
     });
@@ -64,12 +67,14 @@ export function AppDataProvider({ children, initialData }: { children: React.Rea
         dispatch({ type: 'passenger/setAccountStatus', passengerId, status, reason, meta: meta(actor) }),
       setDriverAvailability: (driverId, isAvailable, actor) => dispatch({ type: 'driver/setAvailability', driverId, isAvailable, meta: meta(actor) }),
       setDriverLocation: (driverId, location) => dispatch({ type: 'driver/setLocation', driverId, location, at: new Date().toISOString() }),
+      setPassengerLocation: (passengerId, location) => dispatch({ type: 'passenger/setLocation', passengerId, location, at: new Date().toISOString() }),
       upsertSelfDriver: (driver, isNew) => {
         dispatch({ type: 'driver/upsertSelf', driver, isNew, meta: meta(driver.fullName) });
         if (isNew) {
-          for (const contact of createSampleContactsForDriver(driver.id)) {
+          for (const contact of createSampleContactsForDriver(driver.id, driver.district)) {
             dispatch({ type: 'contact/record', contact, meta: { ...meta('Sample data'), at: contact.contactedAt } });
           }
+          for (const message of createSampleMessagesForDriver(driver.id, driver.district)) dispatch({ type: 'chat/send', message });
         }
       },
       upsertSelfPassenger: (passenger, isNew) => dispatch({ type: 'passenger/upsertSelf', passenger, isNew, meta: meta(passenger.fullName) }),
@@ -83,6 +88,9 @@ export function AppDataProvider({ children, initialData }: { children: React.Rea
       setReportStatus: (reportId, status, actor, reason) => dispatch({ type: 'report/setStatus', reportId, status, reason, meta: meta(actor) }),
       addReportNote: (reportId, body, actor) =>
         dispatch({ type: 'report/addNote', reportId, note: { id: createId('note'), author: actor, body, createdAt: new Date().toISOString() }, meta: meta(actor) }),
+      sendMessage: (message) => dispatch({ type: 'chat/send', message: { ...message, id: createId('msg'), sentAt: new Date().toISOString() } }),
+      markConversationRead: (driverId, passengerId, reader) =>
+        dispatch({ type: 'chat/markRead', driverId, passengerId, reader, at: new Date().toISOString() }),
       resetDemoData: () => dispatch({ type: 'reset', data: createSeedData() }),
     }),
     [submitReport],

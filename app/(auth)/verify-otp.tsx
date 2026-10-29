@@ -29,7 +29,7 @@ export default function VerifyOtp() {
     return (
       <Screen>
         <ScreenHeader back title="Code expired" subtitle="Start again to get a new code." />
-        <Button label="Enter phone number" onPress={() => router.replace('/sign-in')} />
+        <Button label="Back to sign in" onPress={() => router.replace('/sign-in')} />
       </Screen>
     );
   }
@@ -45,6 +45,7 @@ export default function VerifyOtp() {
       setCode('');
       return;
     }
+    if (pendingAuth.mode === 'reset') toast('Password changed. You’re signed in.');
     router.replace('/');
   };
 
@@ -65,7 +66,11 @@ export default function VerifyOtp() {
     <Screen
       footer={<Button label="Verify" size="lg" fullWidth loading={submitting} onPress={() => submit()} testID="otp-submit" />}
     >
-      <ScreenHeader back title="Enter the code" subtitle={`Sent to ${formatPhone(pendingAuth.phone)}`} />
+      <ScreenHeader
+        back
+        title={pendingAuth.mode === 'reset' ? 'Confirm it’s you' : 'Verify your number'}
+        subtitle={`Enter the 6-digit code sent to ${formatPhone(pendingAuth.phone)}`}
+      />
       <Pressable onPress={() => input.current?.focus()} accessibilityLabel="Verification code" style={styles.boxes}>
         {Array.from({ length: LENGTH }, (_, i) => {
           const filled = code[i];

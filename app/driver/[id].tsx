@@ -47,17 +47,33 @@ export default function DriverProfile() {
       scroll
       footer={
         <>
-          <Button
-            label={driver.isAvailable ? `Call ${driver.fullName.split(' ')[0]}` : 'Driver is offline'}
-            icon="call"
-            size="lg"
-            fullWidth
-            disabled={!driver.isAvailable}
-            onPress={() => call(driver)}
-            accessibilityHint="Opens your phone’s dialler with the driver’s number"
-            testID="call-driver"
-          />
-          {!driver.isAvailable ? <AppText variant="caption" color="textMuted" align="center">Offline drivers may not answer. Last active {relativeTime(driver.lastActiveAt)}.</AppText> : null}
+          <View style={styles.actions}>
+            <View style={styles.flex}>
+              <Button
+                label="Message"
+                icon="chatbubbles"
+                size="lg"
+                variant="secondary"
+                fullWidth
+                onPress={() => router.push({ pathname: '/chat/[peerId]', params: { peerId: driver.id } })}
+                accessibilityHint="Opens a chat with this driver"
+                testID="message-driver"
+              />
+            </View>
+            <View style={styles.flex}>
+              <Button
+                label={driver.isAvailable ? `Call ${driver.fullName.split(' ')[0]}` : 'Offline'}
+                icon="call"
+                size="lg"
+                fullWidth
+                disabled={!driver.isAvailable}
+                onPress={() => call(driver)}
+                accessibilityHint="Opens your phone’s dialler with the driver’s number"
+                testID="call-driver"
+              />
+            </View>
+          </View>
+          {!driver.isAvailable ? <AppText variant="caption" color="textMuted" align="center">Offline drivers may not answer calls. Send a message instead. Last active {relativeTime(driver.lastActiveAt)}.</AppText> : null}
         </>
       }
     >
@@ -130,5 +146,6 @@ const styles = StyleSheet.create({
   plateRow: { flexDirection: 'row', alignItems: 'center', gap: spacing.md },
   plate: { paddingHorizontal: spacing.md, paddingVertical: spacing.sm, backgroundColor: '#FFD93B', borderRadius: radius.sm, borderWidth: 2, borderColor: colors.text },
   flex: { flex: 1 },
+  actions: { flexDirection: 'row', gap: spacing.sm },
   tip: { marginTop: spacing.sm },
 });

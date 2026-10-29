@@ -11,6 +11,7 @@ export const tabScreenOptions = {
   tabBarInactiveTintColor: colors.textFaint,
   tabBarStyle: { backgroundColor: colors.background, borderTopColor: colors.border },
   tabBarItemStyle: { paddingHorizontal: 0 },
+  tabBarBadgeStyle: { backgroundColor: colors.danger, color: colors.onPrimary, fontSize: 11 },
   tabBarLabel: TabLabel,
   sceneStyle: { backgroundColor: colors.background },
 };
@@ -19,6 +20,11 @@ export function tabIcon(active: IconName, inactive: IconName) {
   return function TabIcon({ color, focused, size }: { color: ColorValue; focused: boolean; size: number }) {
     return <Ionicons name={focused ? active : inactive} size={size} color={typeof color === 'string' ? color : colors.textFaint} />;
   };
+}
+
+/** Tab badge for a count: hidden at zero, capped so it stays small. */
+export function badge(count: number): string | undefined {
+  return count > 0 ? (count > 9 ? '9+' : String(count)) : undefined;
 }
 
 /** Shrinks long labels (e.g. "Passengers" in a five-tab bar) to fit narrow phones instead of truncating. */

@@ -13,7 +13,7 @@ function regionFor(driver: LiveMapProps['driver'], viewer?: LiveMapProps['viewer
   return regionForRadius(mid, Math.max(0.4, (distanceKm(driver, viewer) / 2) * 1.3));
 }
 
-export function NativeLiveMap({ driver, viewer, trail, accuracyM, driverLabel, height }: LiveMapProps) {
+export function NativeLiveMap({ driver, viewer, trail, accuracyM, driverLabel, height, subject = 'driver' }: LiveMapProps) {
   const map = useRef<MapView>(null);
 
   // Follow the driver as they move.
@@ -35,12 +35,14 @@ export function NativeLiveMap({ driver, viewer, trail, accuracyM, driverLabel, h
         {accuracyM ? <Circle center={driver} radius={Math.min(accuracyM, 150)} strokeColor="rgba(11,79,51,0.35)" fillColor="rgba(11,79,51,0.12)" /> : null}
         {viewer ? (
           <Marker coordinate={viewer} title="You" anchor={{ x: 0.5, y: 0.5 }} tracksViewChanges={false}>
-            <View style={styles.viewer} />
+            {subject === 'passenger' ? (
+              <View style={styles.viewerDriver}><Icon name="bicycle" size={14} color="onPrimary" /></View>
+            ) : <View style={styles.viewer} />}
           </Marker>
         ) : null}
         <Marker coordinate={driver} title={driverLabel} anchor={{ x: 0.5, y: 0.5 }} tracksViewChanges={false}>
           <View style={styles.driver}>
-            <Icon name="bicycle" size={20} color="onPrimary" />
+            <Icon name={subject === 'passenger' ? 'person' : 'bicycle'} size={20} color="onPrimary" />
           </View>
         </Marker>
       </MapView>
@@ -54,5 +56,6 @@ const styles = StyleSheet.create({
     width: 42, height: 42, borderRadius: 21, backgroundColor: colors.primary, alignItems: 'center', justifyContent: 'center',
     borderWidth: 3, borderColor: colors.background,
   },
+  viewerDriver: { width: 28, height: 28, borderRadius: 14, backgroundColor: colors.info, alignItems: 'center', justifyContent: 'center', borderWidth: 2, borderColor: colors.background },
   viewer: { width: 18, height: 18, borderRadius: 9, backgroundColor: colors.info, borderWidth: 3, borderColor: colors.background },
 });

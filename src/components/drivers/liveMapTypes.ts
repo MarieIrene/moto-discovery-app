@@ -10,4 +10,6 @@ export interface LiveMapProps {
   accuracyM?: number | null;
   driverLabel: string;
   height: number;
+  /** Who the followed point is. A passenger is drawn as a person, a driver as a motorcycle. */
+  subject?: 'driver' | 'passenger';
 }

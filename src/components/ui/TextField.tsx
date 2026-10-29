@@ -10,10 +10,12 @@ export interface TextFieldProps extends TextInputProps {
   hint?: string;
   icon?: IconName;
   prefix?: string;
+  /** Shown at the end of the field, e.g. a show/hide password button. */
+  accessory?: React.ReactNode;
 }
 
 export const TextField = forwardRef<TextInputInstance, TextFieldProps>(function TextField(
-  { label, error, hint, icon, prefix, style, onFocus, onBlur, multiline, ...rest },
+  { label, error, hint, icon, prefix, accessory, style, onFocus, onBlur, multiline, ...rest },
   ref,
 ) {
   const [focused, setFocused] = useState(false);
@@ -36,6 +38,7 @@ export const TextField = forwardRef<TextInputInstance, TextFieldProps>(function 
           style={[styles.input, multiline && styles.inputMultiline, style]}
           {...rest}
         />
+        {accessory}
       </View>
       {error ? (
         <View style={styles.message} accessibilityLiveRegion="polite">

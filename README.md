@@ -1,6 +1,6 @@
 # Moto Discovery
 
-A mobile prototype for finding available motorcycle taxi drivers in Kigali and calling them directly. One app covers three modes: **Passenger**, **Driver**, and a simulated **Admin** console.
+A mobile prototype for finding available motorcycle taxi drivers anywhere in Rwanda (all 30 districts), chatting with them and calling them directly. One app covers three modes: **Passenger**, **Driver**, and a simulated **Admin** console.
 
 Everything runs on the device. There is no backend and no real OTP; live location is shared only within this device's demo data. Every simulated behaviour is labelled in the UI.
 
@@ -30,7 +30,7 @@ If `npm install` reports version mismatches after an Expo update, run `npx expo 
 
 | What | Value |
 |---|---|
-| OTP code (any phone number) | `123456` |
+| SMS code when registering or resetting a password | `123456` |
 | Admin access code | `ADMIN-2026` |
 | Sample phone numbers | `+250 700 000 1xx` (fictional range) |
 
@@ -47,13 +47,13 @@ The schematic map draws drivers at their true distance and bearing from you, so 
 
 ### Testing outside Rwanda
 
-Sample drivers are placed around central Kigali. If you're elsewhere, turn on **Use Kigali demo location**. The app offers this on the location screen, in empty states, and in Settings.
+Sample data: 32 drivers spread over Kigali's sectors plus three near the main town of each of the other 27 districts (113 in all), 45 passengers with pickup points in every district, a month of calls, and reports from several districts. If you're outside Rwanda, turn on the **demo location**: it centres the app on the main town of the district in your profile. The app offers this on the location screen, in empty states, and in Settings.
 
 ---
 
 ## Demo walkthrough (acceptance criteria)
 
-1. **Onboarding:** Landing page → Get started → slides → name and phone → OTP `123456` → choose **Both** → profile and motorcycle → **verify identity** (national ID, driving permit, live front-camera selfie) → location screen.
+1. **Onboarding:** Landing page → Get started → sign-in page → **Create an account** → slides → name, phone and password (twice) → SMS code `123456` → choose **Both** → profile (province, then one of the 30 districts) and motorcycle → **verify identity** (national ID, driving permit, live front-camera selfie) → location screen.
 2. **Passenger:** The Nearby tab shows available drivers on the map and in the list. Search by name, area or plate. Change the radius. Switch between Available and All.
 3. **Driver profile:** Tap a driver. **Call** opens the phone dialler and the driver appears under **Recent**. **Report this driver** files a report that shows up in admin mode.
 4. **Driver mode:** Account → Mode → Driver. Your registration starts as *pending*. Tap **Simulate approval** (or approve yourself in admin mode), then toggle **You're online**.
@@ -118,7 +118,8 @@ On **web**, SecureStore isn't available, so the preview falls back to AsyncStora
 ### Connecting a backend later
 
 Screens only depend on hooks and `services/*`. To go live:
-- Replace `simulatedAuth.ts` with real OTP endpoints.
+- Replace `simulatedAuth.ts` and `credentials.ts` with real endpoints: send the password over HTTPS and check it on the server with bcrypt, scrypt or Argon2.
+- Deliver chat messages through a server (e.g. WebSockets) with push notifications.
 - Make `AppDataProvider`'s actions call the API, either optimistically or by refetching.
 - Swap `useNearbyDrivers`' simulated request for a geo query.
 - Delete the `SelfRecordSync` and `createSampleContactsForDriver` stand-ins.
@@ -135,11 +136,15 @@ This is a **front-end simulation**:
   - admin sign-in must be done by a server;
   - every privileged action (approve, reject, suspend, report status) must be authorised, validated and logged by a trusted backend;
   - the client should only display what the server allows.
-- **OTP** is fixed at `123456`; no SMS is sent.
+- **SMS code** is fixed at `123456`; no SMS is sent. It is asked for when registering and when resetting a forgotten password, not at sign-in.
+- **Accounts:** sign in with phone number + password. Passwords are stored on the device as a salted SHA-256 hash in secure storage, never as plain text; 5 wrong tries lock the number for 30 seconds. Several accounts can exist on one phone.
+- **Chat:** passengers message drivers from the driver profile; both sides have a **Messages** tab with unread badges. Messages stay on this device, and sample drivers/passengers reply automatically.
+- **Passenger:** tabs are Home, Nearby, Messages, Recent, Account. After signing in a passenger lands on **Nearby**, a scrolling list of available drivers sorted nearest first. Search (button or keyboard key) looks across all of Rwanda by name, district, town or plate.
+- **Driver sees the passenger:** a passenger's position is their pickup point. Drivers see it only for passengers who called or messaged them: from **Passengers who contacted you** on the driver Home, from **Call logs**, or the pin in the chat. The screen shows distance, a map and **Directions to pickup** (Google Maps). Driver tabs are Home, Messages, Call logs, Account.
 - **Availability** changes only on this device and is not published anywhere.
 - **Driver verification** collects photos of the national ID and driving permit plus a live selfie (front camera only, no gallery). They are stored on the device and shown side by side to the admin, who compares the faces manually. There is no automatic face matching or document check; approval is a local status change.
 - **Calls** open the device dialler with the number filled in. The app records a contact when the dialler opens, not when a call actually happens.
-- **Location:** the driver dashboard follows the device's GPS while it is open (foreground only) and, when online, updates the driver's position in the local store, which the passenger driver profile shows on a live map. With the Kigali demo location on, the dashboard plays a simulated ride. Sample drivers' positions are fixed.
+- **Location:** the driver dashboard follows the device's GPS while it is open (foreground only) and, when online, updates the driver's position in the local store, which the passenger driver profile shows on a live map. With the demo location on, the dashboard plays a simulated ride around the driver's district town. Sample drivers' positions are fixed.
 
 ## Known limitations
 
@@ -160,7 +165,7 @@ The suite contains 46 tests:
 - **Reducer:** verification, suspension, availability rules, report lifecycle and notes.
 - **Selectors:** dashboard totals add up, date ranges, and counters updating after admin actions.
 - **Discovery rules:** unverified or suspended drivers are never shown, radius, sorting, and search.
-- **Validation:** Rwandan phone numbers, OTP, plate numbers, and reasons.
+- **Validation:** Rwandan phone numbers, passwords, SMS codes, districts, plate numbers, and reasons.
 - **Geo and format helpers.**
 - **Components:** Button, badges, EmptyState, ConfirmDialog reason validation, and DriverCard call action.
 

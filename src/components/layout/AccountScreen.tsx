@@ -4,6 +4,7 @@ import { StyleSheet, View } from 'react-native';
 import {
   AppText, Avatar, Card, ConfirmDialog, Divider, ListRow, Screen, ScreenHeader, Section, SegmentedControl, SimulatedNote, SwitchRow, useToast,
 } from '@/components/ui';
+import { demoPlaceName } from '@/data/mock';
 import { formatPhone } from '@/lib/format';
 import { canUseRole, useSession } from '@/state/SessionProvider';
 import { useSettings } from '@/state/SettingsProvider';
@@ -67,7 +68,7 @@ export function AccountScreen() {
       </Section>
 
       <Section title="Demo settings">
-        <SwitchRow icon="pin" title="Use Kigali demo location" subtitle="Centre discovery on Nyarugenge instead of your device" value={settings.useDemoLocation} onValueChange={(v) => updateSettings({ useDemoLocation: v })} />
+        <SwitchRow icon="pin" title={`Use ${demoPlaceName(profile.district)} demo location`} subtitle="Centre discovery on your district’s main town instead of your device" value={settings.useDemoLocation} onValueChange={(v) => updateSettings({ useDemoLocation: v })} />
         <Divider />
         <SwitchRow icon="map" title="Use schematic map" subtitle="Skip the map provider, e.g. without an API key" value={settings.preferFallbackMap} onValueChange={(v) => updateSettings({ preferFallbackMap: v })} />
         <Divider />
@@ -82,7 +83,7 @@ export function AccountScreen() {
       <ConfirmDialog
         visible={confirmSignOut}
         title="Sign out?"
-        message="Your profile stays saved on this device. Sign in again with the same phone number to restore it."
+        message="Your profile stays saved on this device. Sign in again with your phone number and password to restore it."
         confirmLabel="Sign out"
         destructive
         onCancel={() => setConfirmSignOut(false)}

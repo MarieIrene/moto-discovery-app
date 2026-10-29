@@ -9,7 +9,7 @@ import { LiveMapProps } from './liveMapTypes';
  * Schematic live map used on web, when the user prefers it, or if the native map fails. The driver
  * stays centred with a pulse; the viewer and the recent trail are drawn at their true offsets.
  */
-export function LiveMapFallback({ driver, viewer, trail, driverLabel, height }: LiveMapProps) {
+export function LiveMapFallback({ driver, viewer, trail, driverLabel, height, subject = 'driver' }: LiveMapProps) {
   const [width, setWidth] = useState(0);
   const pulse = useRef(new Animated.Value(0)).current;
 
@@ -44,7 +44,11 @@ export function LiveMapFallback({ driver, viewer, trail, driverLabel, height }: 
             const at = toXY(p);
             return <View key={i} style={[styles.trail, { left: at.left - 3, top: at.top - 3, opacity: 0.25 + (0.6 * i) / Math.max(1, all.length) }]} />;
           })}
-          {viewer ? <View style={[styles.viewer, { left: toXY(viewer).left - 9, top: toXY(viewer).top - 9 }]} /> : null}
+          {viewer && subject === 'passenger' ? (
+            <View style={[styles.viewerDriver, { left: toXY(viewer).left - 14, top: toXY(viewer).top - 14 }]}>
+              <Icon name="bicycle" size={14} color="onPrimary" />
+            </View>
+          ) : viewer ? <View style={[styles.viewer, { left: toXY(viewer).left - 9, top: toXY(viewer).top - 9 }]} /> : null}
           <Animated.View
             style={[
               styles.pulse,
@@ -57,7 +61,7 @@ export function LiveMapFallback({ driver, viewer, trail, driverLabel, height }: 
             ]}
           />
           <View style={[styles.driver, { left: width / 2 - 21, top: height / 2 - 21 }]}>
-            <Icon name="bicycle" size={20} color="onPrimary" />
+            <Icon name={subject === 'passenger' ? 'person' : 'bicycle'} size={20} color="onPrimary" />
           </View>
         </>
       ) : null}
@@ -74,6 +78,10 @@ const styles = StyleSheet.create({
   driver: {
     position: 'absolute', width: 42, height: 42, borderRadius: 21, backgroundColor: colors.primary, alignItems: 'center', justifyContent: 'center',
     borderWidth: 3, borderColor: colors.background,
+  },
+  viewerDriver: {
+    position: 'absolute', width: 28, height: 28, borderRadius: 14, backgroundColor: colors.info, alignItems: 'center', justifyContent: 'center',
+    borderWidth: 2, borderColor: colors.background,
   },
   viewer: { position: 'absolute', width: 18, height: 18, borderRadius: 9, backgroundColor: colors.info, borderWidth: 3, borderColor: colors.background },
 });

@@ -2,10 +2,10 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import React, { useMemo } from 'react';
 import { Controller, Resolver, useForm } from 'react-hook-form';
 import { StyleSheet, View } from 'react-native';
-import { AppText, Button, ChipGroup, Section, SimulatedNote } from '@/components/ui';
-import { KIGALI_DISTRICTS } from '@/data/mock';
+import { Button, Section, SimulatedNote } from '@/components/ui';
 import { ProfileFormOutput, profileFormSchema, ProfileFormValues } from '@/lib/validation';
 import { spacing } from '@/theme';
+import { DistrictPicker } from './DistrictPicker';
 import { FormTextField } from './FormTextField';
 
 export interface ProfileFormProps {
@@ -40,16 +40,7 @@ export function ProfileForm({ defaultValues, includeDriver, submitLabel, onSubmi
             control={control}
             name="district"
             render={({ field: { value, onChange }, fieldState: { error } }) => (
-              <View style={styles.chips}>
-                <AppText variant="label">District</AppText>
-                <ChipGroup
-                  accessibilityLabel="District"
-                  value={value}
-                  onChange={onChange}
-                  options={KIGALI_DISTRICTS.map((d) => ({ value: d, label: d }))}
-                />
-                {error ? <AppText variant="caption" color="danger">{error.message}</AppText> : null}
-              </View>
+              <DistrictPicker value={value} onChange={onChange} error={error?.message} />
             )}
           />
           <FormTextField control={control} name="email" label="Email (optional)" icon="mail" keyboardType="email-address" autoCapitalize="none" autoComplete="email" />
@@ -81,7 +72,6 @@ export function ProfileForm({ defaultValues, includeDriver, submitLabel, onSubmi
 const styles = StyleSheet.create({
   form: { gap: spacing.sm },
   fields: { gap: spacing.lg },
-  chips: { gap: spacing.xs },
   row: { flexDirection: 'row', gap: spacing.md },
   half: { flex: 1 },
 });

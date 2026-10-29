@@ -9,7 +9,7 @@ describe('phone handling', () => {
     ['250731234567', '+250731234567'],
   ])('normalises %s', (input, expected) => {
     expect(normalizeRwandaPhone(input)).toBe(expected);
-    expect(signInSchema.parse({ phone: input }).phone).toBe(expected);
+    expect(signInSchema.parse({ phone: input, password: 'x' }).phone).toBe(expected);
   });
 
   it('rejects numbers that are not Rwandan mobiles', () => {
@@ -25,7 +25,7 @@ describe('phone handling', () => {
 
 describe('registration', () => {
   it('requires first and last name and accepted terms', () => {
-    const base = { fullName: 'Grace Ingabire', phone: '0781234567', acceptTerms: true };
+    const base = { fullName: 'Grace Ingabire', phone: '0781234567', password: 'moto2026', confirmPassword: 'moto2026', acceptTerms: true };
     expect(registerSchema.safeParse(base).success).toBe(true);
     expect(registerSchema.safeParse({ ...base, fullName: 'Grace' }).success).toBe(false);
     expect(registerSchema.safeParse({ ...base, acceptTerms: false }).success).toBe(false);

@@ -1,5 +1,5 @@
 import { useEffect } from 'react';
-import { KIGALI_DEMO_LOCATION } from '@/data/mock';
+import { demoLocationFor } from '@/data/mock';
 import { Driver, Passenger } from '@/types';
 import { useAppData } from './appData/AppDataProvider';
 import { canUseRole, StoredProfile, useSession } from './SessionProvider';
@@ -15,7 +15,7 @@ export function buildSelfDriver(profile: StoredProfile, existing?: Driver): Driv
     phone: profile.phone,
     district: profile.district,
     sector: existing?.sector ?? profile.district,
-    location: existing?.location ?? KIGALI_DEMO_LOCATION,
+    location: existing?.location ?? demoLocationFor(profile.district),
     isAvailable: resubmitted ? false : existing?.isAvailable ?? false,
     // New documents always go back to review, even if the driver was approved before.
     verificationStatus: resubmitted ? 'pending' : existing?.verificationStatus ?? 'pending',
@@ -39,6 +39,8 @@ export function buildSelfPassenger(profile: StoredProfile, existing?: Passenger)
     fullName: profile.fullName,
     phone: profile.phone,
     district: profile.district,
+    location: existing?.location,
+    locationUpdatedAt: existing?.locationUpdatedAt,
     accountStatus: existing?.accountStatus ?? 'active',
     statusReason: existing?.statusReason,
     joinedAt: existing?.joinedAt ?? now,

@@ -1,7 +1,8 @@
 import React, { createContext, useCallback, useContext, useEffect, useMemo, useState } from 'react';
 import { DEMO_ADMIN } from '@/data/mock';
 import { createId } from '@/lib/id';
-import { deleteSecure, readSecureJson, SECURE_KEYS, writeSecureJson } from '@/services/secureStorage';
+import { findAccount, removeCredentials, saveCredentials } from '@/services/credentials';
+import { deleteSecure, profileKey, readSecureJson, SECURE_KEYS, writeSecureJson } from '@/services/secureStorage';
 import * as auth from '@/services/simulatedAuth';
 import { readJson, removeKeys, STORAGE_KEYS, writeJson } from '@/services/storage';
 import { AppRole, DriverDocuments, Motorcycle, RolePreference, Session, UserProfile } from '@/types';
@@ -12,10 +13,13 @@ export interface StoredProfile extends UserProfile {
   documents?: DriverDocuments;
 }
 
+/** A registration or password reset waiting for its SMS code. Held in memory only, never saved. */
 interface PendingAuth {
-  mode: 'signin' | 'register';
+  mode: 'register' | 'reset';
   phone: string;
   fullName?: string;
+  /** The new password, kept until the code is confirmed and then hashed. */
+  password?: string;
   expiresAt: string;
 }
 
@@ -36,7 +40,8 @@ interface SessionContextValue {
   draftRole: RolePreference | null;
   completeOnboarding: () => void;
   markLocationPromptSeen: () => void;
-  beginAuth: (input: { mode: PendingAuth['mode']; phone: string; fullName?: string }) => Promise<void>;
+  beginAuth: (input: { mode: PendingAuth['mode']; phone: string; password: string; fullName?: string }) => Promise<ConfirmResult>;
+  signIn: (phone: string, password: string) => Promise<ConfirmResult>;
   resendOtp: () => Promise<void>;
   confirmOtp: (code: string) => Promise<ConfirmResult>;
   chooseRole: (role: RolePreference) => void;
@@ -62,6 +67,18 @@ export function needsDriverDocuments(profile: StoredProfile | null): boolean {
   return !!profile && canUseRole(profile.rolePreference, 'driver') && !profile.documents;
 }
 
+/** Reads an account's profile, moving one saved by an older version (single profile key) if needed. */
+async function loadProfile(userId: string): Promise<StoredProfile | null> {
+  const stored = await readSecureJson<StoredProfile>(profileKey(userId));
+  if (stored) return stored;
+  const legacy = await readSecureJson<StoredProfile>(SECURE_KEYS.profile);
+  if (legacy?.id !== userId) return null;
+  await writeSecureJson(profileKey(userId), legacy);
+  return legacy;
+}
+
+const saveProfile = (profile: StoredProfile) => writeSecureJson(profileKey(profile.id), profile);
+
 export function SessionProvider({ children }: { children: React.ReactNode }) {
   const [ready, setReady] = useState(false);
   const [session, setSession] = useState<Session | null>(null);
@@ -73,17 +90,17 @@ export function SessionProvider({ children }: { children: React.ReactNode }) {
 
   useEffect(() => {
     (async () => {
-      const [storedSession, storedProfile, storedFlags, storedRole] = await Promise.all([
+      const [storedSession, storedFlags, storedRole] = await Promise.all([
         readSecureJson<Session>(SECURE_KEYS.session),
-        readSecureJson<StoredProfile>(SECURE_KEYS.profile),
         readJson<DeviceFlags>(STORAGE_KEYS.onboardingComplete),
         readJson<AppRole>(STORAGE_KEYS.activeRole),
       ]);
       if (storedFlags) setFlags(storedFlags);
       if (storedSession) {
         setSession(storedSession);
+        const storedProfile = storedSession.isAdmin ? null : await loadProfile(storedSession.userId);
         if (storedSession.isAdmin) setActiveRole('admin');
-        else if (storedProfile && storedProfile.id === storedSession.userId) {
+        else if (storedProfile) {
           setProfile(storedProfile);
           const role = storedRole && storedRole !== 'admin' && canUseRole(storedProfile.rolePreference, storedRole)
             ? storedRole
@@ -108,10 +125,34 @@ export function SessionProvider({ children }: { children: React.ReactNode }) {
     if (role) void writeJson(STORAGE_KEYS.activeRole, role);
   }, []);
 
-  const beginAuth = useCallback<SessionContextValue['beginAuth']>(async ({ mode, phone, fullName }) => {
+  const startSession = useCallback(async (userId: string, phone: string, token: string) => {
+    const nextSession: Session = { userId, phone, token, signedInAt: new Date().toISOString(), isAdmin: false };
+    await writeSecureJson(SECURE_KEYS.session, nextSession);
+    const match = await loadProfile(userId);
+    setSession(nextSession);
+    setProfile(match);
+    setRole(match ? ROLE_FOR_PREFERENCE[match.rolePreference] : null);
+  }, [setRole]);
+
+  const beginAuth = useCallback<SessionContextValue['beginAuth']>(async ({ mode, phone, password, fullName }) => {
+    const registered = await auth.isPhoneRegistered(phone);
+    if (mode === 'register' && registered) {
+      return { ok: false, message: 'An account already uses this phone number. Sign in with your password instead.' };
+    }
+    if (mode === 'reset' && !registered) {
+      return { ok: false, message: 'No account uses this phone number on this device. Create an account instead.' };
+    }
     const request = await auth.requestOtp(phone);
-    setPendingAuth({ mode, phone, fullName, expiresAt: request.expiresAt });
+    setPendingAuth({ mode, phone, password, fullName, expiresAt: request.expiresAt });
+    return { ok: true };
   }, []);
+
+  const signIn = useCallback<SessionContextValue['signIn']>(async (phone, password) => {
+    const result = await auth.signInWithPassword(phone, password);
+    if (!result.ok) return result;
+    await startSession(result.userId, phone, result.token);
+    return { ok: true };
+  }, [startSession]);
 
   const resendOtp = useCallback(async () => {
     if (!pendingAuth) return;
@@ -121,34 +162,35 @@ export function SessionProvider({ children }: { children: React.ReactNode }) {
 
   const confirmOtp = useCallback<SessionContextValue['confirmOtp']>(
     async (code) => {
-      if (!pendingAuth) return { ok: false, message: 'Your sign-in expired. Enter your phone number again.' };
+      if (!pendingAuth?.password) return { ok: false, message: 'This code expired. Start again.' };
       const result = await auth.verifyOtp(code);
       if (!result.ok) return result;
+      const { phone, password } = pendingAuth;
 
-      // "Account lookup" is local: a profile saved on this device with the same phone number.
-      const existing = await readSecureJson<StoredProfile>(SECURE_KEYS.profile);
-      const match = existing && existing.phone === pendingAuth.phone ? existing : null;
-      const nextSession: Session = {
-        userId: match?.id ?? createId('usr'),
-        phone: pendingAuth.phone,
-        token: result.token,
-        signedInAt: new Date().toISOString(),
-        isAdmin: false,
-      };
-      await writeSecureJson(SECURE_KEYS.session, nextSession);
-      setSession(nextSession);
-      setProfile(match);
-      setRole(match ? ROLE_FOR_PREFERENCE[match.rolePreference] : null);
+      let userId: string;
+      if (pendingAuth.mode === 'reset') {
+        const account = await findAccount(phone);
+        if (!account) return { ok: false, message: 'No account uses this phone number on this device.' };
+        userId = account.userId;
+      } else {
+        // A profile made before passwords existed is kept: registering its number again adopts it.
+        const legacy = await readSecureJson<StoredProfile>(SECURE_KEYS.profile);
+        userId = legacy?.phone === phone ? legacy.id : createId('usr');
+      }
+      await saveCredentials(phone, userId, password);
+      await startSession(userId, phone, result.token);
+      // Forget the plain password as soon as it has been hashed.
+      setPendingAuth({ ...pendingAuth, password: undefined });
       return { ok: true };
     },
-    [pendingAuth, setRole],
+    [pendingAuth, startSession],
   );
 
   const completeProfile = useCallback<SessionContextValue['completeProfile']>(
     async (input) => {
       if (!session) throw new Error('No session');
       const next: StoredProfile = { ...input, id: session.userId, phone: session.phone };
-      await writeSecureJson(SECURE_KEYS.profile, next);
+      await saveProfile(next);
       setProfile(next);
       setRole(ROLE_FOR_PREFERENCE[next.rolePreference]);
       setPendingAuth(null);
@@ -161,7 +203,7 @@ export function SessionProvider({ children }: { children: React.ReactNode }) {
     async (patch) => {
       if (!profile) return;
       const next: StoredProfile = { ...profile, ...patch };
-      await writeSecureJson(SECURE_KEYS.profile, next);
+      await saveProfile(next);
       setProfile(next);
       if (activeRole && activeRole !== 'admin' && !canUseRole(next.rolePreference, activeRole)) {
         setRole(ROLE_FOR_PREFERENCE[next.rolePreference]);
@@ -200,23 +242,29 @@ export function SessionProvider({ children }: { children: React.ReactNode }) {
   }, []);
 
   const deleteLocalAccount = useCallback(async () => {
-    await Promise.all([deleteSecure(SECURE_KEYS.session), deleteSecure(SECURE_KEYS.profile)]);
+    const tasks = [deleteSecure(SECURE_KEYS.session)];
+    if (session && !session.isAdmin) {
+      tasks.push(deleteSecure(profileKey(session.userId)), removeCredentials(session.phone));
+      const legacy = await readSecureJson<StoredProfile>(SECURE_KEYS.profile);
+      if (legacy?.id === session.userId) tasks.push(deleteSecure(SECURE_KEYS.profile));
+    }
+    await Promise.all(tasks);
     await removeKeys([STORAGE_KEYS.activeRole]);
     setSession(null);
     setProfile(null);
     setActiveRole(null);
-  }, []);
+  }, [session]);
 
   const value = useMemo<SessionContextValue>(
     () => ({
       ready, session, profile, activeRole, flags, pendingAuth, draftRole,
       completeOnboarding: () => saveFlags({ onboardingComplete: true }),
       markLocationPromptSeen: () => saveFlags({ locationPromptSeen: true }),
-      beginAuth, resendOtp, confirmOtp,
+      beginAuth, signIn, resendOtp, confirmOtp,
       chooseRole: setDraftRole,
       completeProfile, updateProfile, switchRole, signInAdmin, signOut, deleteLocalAccount,
     }),
-    [ready, session, profile, activeRole, flags, pendingAuth, draftRole, saveFlags, beginAuth, resendOtp, confirmOtp, completeProfile, updateProfile, switchRole, signInAdmin, signOut, deleteLocalAccount],
+    [ready, session, profile, activeRole, flags, pendingAuth, draftRole, saveFlags, beginAuth, signIn, resendOtp, confirmOtp, completeProfile, updateProfile, switchRole, signInAdmin, signOut, deleteLocalAccount],
   );
 
   return <SessionContext.Provider value={value}>{children}</SessionContext.Provider>;

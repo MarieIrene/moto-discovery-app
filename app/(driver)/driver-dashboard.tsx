@@ -6,9 +6,12 @@ import {
   AppText, Avatar, Button, Card, Divider, ListRow, LoadingState, OfflineBanner, Section, SimulatedNote, StatusBadge, VerificationBadge, useToast,
 } from '@/components/ui';
 import { LiveMap } from '@/components/drivers/LiveMap';
+import { useDriverPassengers } from '@/hooks/useDriverPassengers';
 import { useLiveLocation } from '@/hooks/useLiveLocation';
 import { useSelfDriver } from '@/hooks/useSelfDriver';
+import { demoPlaceName } from '@/data/mock';
 import { formatPhone, relativeTime } from '@/lib/format';
+import { distanceKm, formatDistance } from '@/lib/geo';
 import { getCurrentLocation, getPermissionState, PermissionState } from '@/services/location';
 import { useAppData } from '@/state/appData/AppDataProvider';
 import { useActorName, useSession } from '@/state/SessionProvider';
@@ -23,6 +26,7 @@ export default function DriverDashboard() {
   const { settings } = useSettings();
   const actor = useActorName();
   const { updateProfile } = useSession();
+  const waiting = useDriverPassengers().slice(0, 4);
   const toast = useToast();
   const [permission, setPermission] = useState<PermissionState>('undetermined');
   const [locating, setLocating] = useState(false);
@@ -59,13 +63,13 @@ export default function DriverDashboard() {
 
   const online = driver.isAvailable;
   const locationLabel = settings.useDemoLocation
-    ? 'Using Kigali demo location'
+    ? `Using ${demoPlaceName(driver.district)} demo location`
     : permission === 'granted' ? (lastFix ? `Position read ${relativeTime(lastFix)}` : 'Position is read when you go online')
     : 'Location permission is off';
 
   const liveStatus = live.source === 'off'
     ? 'Location is off, so this is your last saved position. Turn it on in Privacy & location.'
-    : `${online ? 'Passengers see you here' : 'Only you can see this while offline'} · ${live.source === 'demo' ? 'simulated ride around Kigali' : live.updatedAt ? `updated ${relativeTime(live.updatedAt).toLowerCase()}` : 'finding you…'}`;
+    : `${online ? 'Passengers see you here' : 'Only you can see this while offline'} · ${live.source === 'demo' ? `simulated ride around ${demoPlaceName(driver.district)}` : live.updatedAt ? `updated ${relativeTime(live.updatedAt).toLowerCase()}` : 'finding you…'}`;
 
   return (
     <View style={styles.root}>
@@ -144,6 +148,29 @@ export default function DriverDashboard() {
             live={live.source !== 'off'}
             status={liveStatus}
           />
+        </Section>
+
+        <Section title="Passengers who contacted you" style={styles.section}>
+          {waiting.length === 0 ? (
+            <AppText color="textMuted">When a passenger calls or messages you, you’ll see here how far away they are.</AppText>
+          ) : (
+            waiting.map(({ passenger, lastContactAt, via }, i) => {
+              const here = live.point ?? driver.location;
+              const away = passenger.location ? formatDistance(distanceKm(here, passenger.location)) : 'location not shared';
+              return (
+                <View key={passenger.id}>
+                  {i > 0 ? <Divider /> : null}
+                  <ListRow
+                    icon={via === 'message' ? 'chatbubble-ellipses' : 'call'}
+                    title={passenger.fullName}
+                    subtitle={`${away} · ${via === 'message' ? 'messaged' : 'called'} ${relativeTime(lastContactAt).toLowerCase()}`}
+                    onPress={() => router.push({ pathname: '/passenger/[id]', params: { id: passenger.id } })}
+                    testID={`waiting-${passenger.id}`}
+                  />
+                </View>
+              );
+            })
+          )}
         </Section>
 
         <Section title="Location sharing" style={styles.section}>

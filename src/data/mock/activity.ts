@@ -5,6 +5,9 @@ export function createMockActivity(now: Date = new Date()): ActivityEvent[] {
   const e = (id: string, type: ActivityEvent['type'], message: string, subjectId: string, subjectType: ActivityEvent['subjectType'], createdAt: string, actor = 'System'): ActivityEvent =>
     ({ id, type, message, subjectId, subjectType, createdAt, actor });
   return [
+    e('act-101', 'report_submitted', 'New overcharging report from Musanze', 'rep-101', 'report', hoursAgo(5, now), 'Passenger'),
+    e('act-102', 'report_submitted', 'New unsafe riding report from Rubavu', 'rep-103', 'report', hoursAgo(20, now), 'Passenger'),
+    e('act-103', 'report_status_changed', 'Report rep-102 moved to under review', 'rep-102', 'report', daysAgo(1, 9, now), 'Demo Admin'),
     e('act-001', 'report_submitted', 'New overcharging report about Didier Hakizimana', 'rep-003', 'report', hoursAgo(10, now), 'Grace Ingabire'),
     e('act-002', 'driver_registered', 'Yves Ishimwe registered as a driver', 'drv-014', 'driver', daysAgo(1, 9, now)),
     e('act-003', 'report_submitted', 'New unsafe riding report about Patrick Mugisha', 'rep-004', 'report', daysAgo(1, 9, now), 'Moses Habyarimana'),

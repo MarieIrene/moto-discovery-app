@@ -35,7 +35,8 @@ export function filterNearbyDrivers(
     })
     .map((d) => ({ ...d, distanceKm: distanceKm(origin, d.location) }))
     .filter((d) => d.distanceKm <= filters.radiusKm)
-    .sort((a, b) => Number(b.isAvailable) - Number(a.isAvailable) || a.distanceKm - b.distanceKm);
+    // Nearest first, so the driver who can reach the passenger soonest is at the top.
+    .sort((a, b) => a.distanceKm - b.distanceKm);
 }
 
 export const RADIUS_OPTIONS_KM = [1, 2, 5, 10, 25] as const;

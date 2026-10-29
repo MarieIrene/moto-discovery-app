@@ -1,10 +1,11 @@
 import { zodResolver } from '@hookform/resolvers/zod';
 import { router } from 'expo-router';
-import React from 'react';
+import React, { useState } from 'react';
 import { Controller, useForm } from 'react-hook-form';
 import { Pressable, StyleSheet, View } from 'react-native';
 import { z } from 'zod';
 import { FormTextField } from '@/components/forms/FormTextField';
+import { PasswordField } from '@/components/forms/PasswordField';
 import { AppText, Button, Icon, Screen, ScreenHeader, SimulatedNote } from '@/components/ui';
 import { registerSchema } from '@/lib/validation';
 import { useSession } from '@/state/SessionProvider';
@@ -15,13 +16,16 @@ type Output = z.output<typeof registerSchema>;
 
 export default function Register() {
   const { beginAuth } = useSession();
+  const [error, setError] = useState<string>();
   const { control, handleSubmit, formState } = useForm<Input, unknown, Output>({
     resolver: zodResolver(registerSchema),
-    defaultValues: { fullName: '', phone: '', acceptTerms: false },
+    defaultValues: { fullName: '', phone: '', password: '', confirmPassword: '', acceptTerms: false },
   });
 
-  const onSubmit = handleSubmit(async ({ fullName, phone }) => {
-    await beginAuth({ mode: 'register', phone, fullName });
+  const onSubmit = handleSubmit(async ({ fullName, phone, password }) => {
+    setError(undefined);
+    const result = await beginAuth({ mode: 'register', phone, password, fullName });
+    if (!result.ok) return setError(result.message);
     router.push('/verify-otp');
   });
 
@@ -38,7 +42,9 @@ export default function Register() {
       <ScreenHeader back title="Create your account" subtitle="One account works for riding and for driving." />
       <View style={styles.form}>
         <FormTextField control={control} name="fullName" label="Full name" icon="person" placeholder="e.g. Grace Ingabire" autoComplete="name" textContentType="name" autoCapitalize="words" />
-        <FormTextField control={control} name="phone" label="Phone number" icon="call" placeholder="078 123 4567" keyboardType="phone-pad" autoComplete="tel" hint="Drivers call or are called on this number." />
+        <FormTextField control={control} name="phone" label="Phone number" icon="call" placeholder="078 123 4567" keyboardType="phone-pad" autoComplete="tel" hint="You sign in with this number. Drivers and passengers call you on it." testID="register-phone" />
+        <PasswordField control={control} name="password" label="Password" hint="At least 6 characters, with letters and a number." autoComplete="new-password" textContentType="newPassword" testID="register-password" />
+        <PasswordField control={control} name="confirmPassword" label="Confirm password" autoComplete="new-password" textContentType="newPassword" testID="register-confirm-password" />
         <Controller
           control={control}
           name="acceptTerms"
@@ -58,7 +64,13 @@ export default function Register() {
             </View>
           )}
         />
-        <SimulatedNote>Accounts are stored only on this device. There is no server.</SimulatedNote>
+        {error ? (
+          <View style={styles.error} accessibilityLiveRegion="polite">
+            <AppText color="danger">{error}</AppText>
+            <Button label="Go to sign in" variant="secondary" onPress={() => router.replace('/sign-in')} />
+          </View>
+        ) : null}
+        <SimulatedNote>Accounts are stored only on this device. There is no server. Your password is saved as a secure hash.</SimulatedNote>
       </View>
     </Screen>
   );
@@ -71,4 +83,5 @@ const styles = StyleSheet.create({
   box: { width: 26, height: 26, borderRadius: radius.sm, borderWidth: 2, borderColor: colors.borderStrong, alignItems: 'center', justifyContent: 'center' },
   boxOn: { backgroundColor: colors.primary, borderColor: colors.primary },
   termsText: { flex: 1 },
+  error: { gap: spacing.sm },
 });

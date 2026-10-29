@@ -1,11 +1,17 @@
+import { DISTRICTS } from '@/data/rwanda';
 import { Driver } from '@/types';
 import { daysAgo, hoursAgo } from './time';
 
 /**
- * Fictional drivers around Kigali. Names, plates and phone numbers are invented.
+ * Fictional drivers: a detailed set around Kigali plus a few in every other district, so the app
+ * works wherever in Rwanda it is opened. Names, plates and phone numbers are invented.
  * Phone numbers use the +250 700 000 xxx range, which is not a real subscriber range.
  */
 export function createMockDrivers(now: Date = new Date()): Driver[] {
+  return [...createKigaliDrivers(now), ...createMoreKigaliDrivers(now), ...createDistrictDrivers(now)];
+}
+
+function createKigaliDrivers(now: Date): Driver[] {
   return [
     {
       id: 'drv-001', fullName: 'Jean Claude Habimana', phone: '+250700000101',
@@ -130,4 +136,93 @@ export function createMockDrivers(now: Date = new Date()): Driver[] {
       registeredAt: daysAgo(480, 8, now), lastActiveAt: hoursAgo(0.15, now),
     },
   ];
+}
+
+const FIRST = ['Jean Bosco', 'Alice', 'Emmanuel', 'Claudine', 'Faustin', 'Josiane', 'Celestin', 'Vestine', 'Damascene', 'Solange', 'Gilbert', 'Immaculee'];
+const LAST = ['Niyitegeka', 'Mukandayisenga', 'Habyarimana', 'Uwamariya', 'Ntawukuriryayo', 'Nyirahabimana', 'Mugabo', 'Uwizeye', 'Twagirimana', 'Ingabire', 'Bizimungu', 'Nsengiyumva'];
+const SPOTS = ['Town centre', 'Bus park', 'Market'];
+const BIKES = [
+  { make: 'TVS', model: 'HLX 125', color: 'Red' },
+  { make: 'Bajaj', model: 'Boxer 150', color: 'Black' },
+  { make: 'Honda', model: 'CG 125', color: 'Blue' },
+  { make: 'Haojue', model: 'HJ125', color: 'White' },
+];
+// Small offsets (about 1-2 km) so the three drivers in a town don't sit on the same point.
+const OFFSETS: [number, number][] = [[0.004, -0.006], [-0.009, 0.005], [0.012, 0.011]];
+
+/** Three verified drivers near the main town of each district outside Kigali; two are online. */
+function createDistrictDrivers(now: Date): Driver[] {
+  return DISTRICTS.filter((d) => d.province !== 'Kigali City').flatMap((district, di) =>
+    OFFSETS.map(([dLat, dLng], k): Driver => {
+      const n = di * OFFSETS.length + k;
+      const bike = BIKES[n % BIKES.length]!;
+      return {
+        id: `drv-${district.name.toLowerCase()}-${k + 1}`,
+        fullName: `${FIRST[n % FIRST.length]} ${LAST[(n * 5 + di) % LAST.length]}`,
+        phone: `+250700000${String(301 + n)}`,
+        district: district.name,
+        sector: SPOTS[k]!,
+        location: { latitude: district.centre.latitude + dLat, longitude: district.centre.longitude + dLng },
+        isAvailable: k !== 2,
+        verificationStatus: 'approved',
+        accountStatus: 'active',
+        motorcycle: { ...bike, plateNumber: `RF ${String(100 + n)} ${'ABCDEFGHJK'[n % 10]}`, year: 2018 + (n % 7) },
+        rating: Math.round((4.2 + ((n * 7) % 8) / 10) * 10) / 10,
+        completedTrips: 150 + ((n * 137) % 1800),
+        languages: n % 3 === 0 ? ['Kinyarwanda', 'English'] : n % 3 === 1 ? ['Kinyarwanda', 'French'] : ['Kinyarwanda', 'Swahili'],
+        yearsRiding: 1 + (n % 9),
+        registeredAt: daysAgo(60 + ((n * 23) % 500), 9 + (n % 8), now),
+        lastActiveAt: k === 2 ? hoursAgo(3 + (n % 20), now) : hoursAgo(0.1 + (n % 5) / 10, now),
+      };
+    }),
+  );
+}
+
+/** Busy Kigali areas used for the extra sample drivers. Coordinates are approximate. */
+const KIGALI_SPOTS: [sector: string, district: string, latitude: number, longitude: number][] = [
+  ['Muhima', 'Nyarugenge', -1.9440, 30.0570],
+  ['Nyakabanda', 'Nyarugenge', -1.9630, 30.0500],
+  ['Gitega', 'Nyarugenge', -1.9560, 30.0560],
+  ['Kigali', 'Nyarugenge', -1.9520, 30.0330],
+  ['Kibagabaga', 'Gasabo', -1.9310, 30.1180],
+  ['Ndera', 'Gasabo', -1.9330, 30.1640],
+  ['Rusororo', 'Gasabo', -1.9450, 30.1700],
+  ['Bumbogo', 'Gasabo', -1.8950, 30.1300],
+  ['Jabana', 'Gasabo', -1.8850, 30.0550],
+  ['Gisozi', 'Gasabo', -1.9180, 30.0640],
+  ['Niboye', 'Kicukiro', -1.9810, 30.0980],
+  ['Gatenga', 'Kicukiro', -1.9850, 30.0800],
+  ['Kagarama', 'Kicukiro', -1.9920, 30.1100],
+  ['Masaka', 'Kicukiro', -1.9980, 30.1800],
+  ['Kanombe', 'Kicukiro', -1.9700, 30.1450],
+  ['Nyarugunga', 'Kicukiro', -1.9750, 30.1250],
+  ['Kicukiro', 'Kicukiro', -1.9690, 30.1020],
+];
+
+const KGL_FIRST = ['Eric', 'Divine', 'Thierry', 'Clarisse', 'Janvier', 'Ange', 'Olivier', 'Nadine', 'Pacifique', 'Sylvie', 'Gad', 'Liliane', 'Aimable', 'Belise', 'Rene', 'Yvonne', 'Fiston'];
+const KGL_LAST = ['Mugenzi', 'Uwineza', 'Ndikumana', 'Mukeshimana', 'Hategekimana', 'Iradukunda', 'Kayitare', 'Nyiransabimana', 'Munyaneza'];
+
+/** More verified drivers spread over Kigali so every part of the city has someone nearby. */
+function createMoreKigaliDrivers(now: Date): Driver[] {
+  return KIGALI_SPOTS.map(([sector, district, latitude, longitude], n): Driver => {
+    const bike = BIKES[(n + 1) % BIKES.length]!;
+    return {
+      id: `drv-kgl-${String(n + 1).padStart(2, '0')}`,
+      fullName: `${KGL_FIRST[n % KGL_FIRST.length]} ${KGL_LAST[(n * 4) % KGL_LAST.length]}`,
+      phone: `+250700000${String(401 + n)}`,
+      district,
+      sector,
+      location: { latitude, longitude },
+      isAvailable: n % 4 !== 3,
+      verificationStatus: 'approved',
+      accountStatus: 'active',
+      motorcycle: { ...bike, plateNumber: `RG ${String(200 + n * 7)} ${'ABCDEFGHJK'[n % 10]}`, year: 2017 + (n % 8) },
+      rating: Math.round((4.1 + ((n * 3) % 9) / 10) * 10) / 10,
+      completedTrips: 90 + ((n * 211) % 2400),
+      languages: n % 2 ? ['Kinyarwanda', 'English'] : ['Kinyarwanda', 'French', 'Swahili'],
+      yearsRiding: 1 + (n % 11),
+      registeredAt: daysAgo(30 + ((n * 41) % 700), 8 + (n % 9), now),
+      lastActiveAt: n % 4 === 3 ? hoursAgo(2 + n, now) : hoursAgo(0.05 + (n % 6) / 10, now),
+    };
+  });
 }

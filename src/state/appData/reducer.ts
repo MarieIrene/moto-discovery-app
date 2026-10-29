@@ -3,6 +3,7 @@ import {
   AccountStatus,
   ActivityEvent,
   ActivityType,
+  ChatMessage,
   ContactRecord,
   Driver,
   GeoPoint,
@@ -37,14 +38,19 @@ export type AppDataAction =
   | { type: 'driver/setVerification'; driverId: string; status: VerificationStatus; reason?: string; meta: ActionMeta }
   | { type: 'driver/setAccountStatus'; driverId: string; status: AccountStatus; reason?: string; meta: ActionMeta }
   | { type: 'passenger/upsertSelf'; passenger: Passenger; meta: ActionMeta; isNew: boolean }
+  | { type: 'passenger/setLocation'; passengerId: string; location: GeoPoint; at: string }
   | { type: 'passenger/setAccountStatus'; passengerId: string; status: AccountStatus; reason?: string; meta: ActionMeta }
   | { type: 'contact/record'; contact: ContactRecord; meta: ActionMeta }
   | { type: 'report/submit'; report: Report; meta: ActionMeta }
   | { type: 'report/setStatus'; reportId: string; status: ReportStatus; reason?: string; meta: ActionMeta }
-  | { type: 'report/addNote'; reportId: string; note: ReportNote; meta: ActionMeta };
+  | { type: 'report/addNote'; reportId: string; note: ReportNote; meta: ActionMeta }
+  | { type: 'chat/send'; message: ChatMessage }
+  | { type: 'chat/markRead'; driverId: string; passengerId: string; reader: ChatMessage['sender']; at: string };
 
 /** Activity feed is capped so local storage stays small. */
 export const ACTIVITY_LIMIT = 200;
+/** Oldest messages are dropped beyond this, for the same reason. */
+export const MESSAGE_LIMIT = 1000;
 
 function logActivity(
   state: AppDataState,
@@ -164,6 +170,18 @@ export function appDataReducer(state: AppDataState, action: AppDataAction): AppD
       };
     }
 
+    case 'passenger/setLocation': {
+      const passenger = state.passengers.find((p) => p.id === action.passengerId);
+      if (!passenger) return state;
+      // Small GPS jitter (under ~20 m) isn't worth a write.
+      const prev = passenger.location;
+      if (prev && Math.abs(prev.latitude - action.location.latitude) < 0.0002 && Math.abs(prev.longitude - action.location.longitude) < 0.0002) return state;
+      return {
+        ...state,
+        passengers: updateById(state.passengers, action.passengerId, (p) => ({ ...p, location: action.location, locationUpdatedAt: action.at, lastActiveAt: action.at })),
+      };
+    }
+
     case 'passenger/setAccountStatus': {
       const passenger = state.passengers.find((p) => p.id === action.passengerId);
       if (!passenger || passenger.accountStatus === action.status) return state;
@@ -221,6 +239,17 @@ export function appDataReducer(state: AppDataState, action: AppDataAction): AppD
         reports: updateById(state.reports, action.reportId, (r) => ({ ...r, notes: [...r.notes, action.note] })),
         activity: logActivity(state, action.meta, 'report_note_added', `Note added to report ${report.id}`, report.id, 'report'),
       };
+    }
+
+    // Chats are private between the two people, so they never appear in the admin activity feed.
+    case 'chat/send':
+      return { ...state, messages: [...state.messages, action.message].slice(-MESSAGE_LIMIT) };
+
+    case 'chat/markRead': {
+      const { driverId, passengerId, reader, at } = action;
+      const isUnread = (m: ChatMessage) => m.driverId === driverId && m.passengerId === passengerId && m.sender !== reader && !m.readAt;
+      if (!state.messages.some(isUnread)) return state;
+      return { ...state, messages: state.messages.map((m) => (isUnread(m) ? { ...m, readAt: at } : m)) };
     }
 
     default: {

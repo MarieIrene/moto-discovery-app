@@ -67,6 +67,8 @@ function RootNavigator() {
       </Stack.Protected>
       <Stack.Protected guard={isUser}>
         <Stack.Screen name="driver/[id]" />
+        <Stack.Screen name="chat/[peerId]" />
+        <Stack.Screen name="passenger/[id]" />
         <Stack.Screen name="report/[driverId]" options={{ presentation: 'modal' }} />
         <Stack.Screen name="edit-profile" />
       </Stack.Protected>
