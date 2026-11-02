@@ -43,3 +43,29 @@ export function regionForRadius(center: GeoPoint, radiusKm: number) {
   const lonDelta = (radiusKm * 2.2) / (111.32 * Math.cos(toRad(center.latitude)));
   return { ...center, latitudeDelta: latDelta, longitudeDelta: lonDelta };
 }
+
+/** [west, south, east, north] box that fits a circle of `radiusKm` around `center`. */
+export function boundsForRadius(center: GeoPoint, radiusKm: number): [number, number, number, number] {
+  const { latitudeDelta, longitudeDelta } = regionForRadius(center, radiusKm);
+  return [
+    center.longitude - longitudeDelta / 2,
+    center.latitude - latitudeDelta / 2,
+    center.longitude + longitudeDelta / 2,
+    center.latitude + latitudeDelta / 2,
+  ];
+}
+
+/** Closed ring of [longitude, latitude] points approximating a circle, for drawing radius and accuracy areas. */
+export function circleRing(center: GeoPoint, radiusKm: number, steps = 64): [number, number][] {
+  const kmPerDegLat = 110.574;
+  const kmPerDegLon = 111.32 * Math.cos(toRad(center.latitude));
+  const ring: [number, number][] = [];
+  for (let i = 0; i <= steps; i++) {
+    const angle = (i / steps) * 2 * Math.PI;
+    ring.push([
+      center.longitude + (radiusKm * Math.cos(angle)) / kmPerDegLon,
+      center.latitude + (radiusKm * Math.sin(angle)) / kmPerDegLat,
+    ]);
+  }
+  return ring;
+}

@@ -36,10 +36,10 @@ If `npm install` reports version mismatches after an Expo update, run `npx expo 
 
 ### Maps
 
-On Android and iOS the app uses `react-native-maps`. **Expo Go needs no API key.** A standalone Android build needs a Google Maps key in `app.json → android.config.googleMaps.apiKey`.
+On Android and iOS the app uses `@maplibre/maplibre-react-native` with free OpenStreetMap tiles from [OpenFreeMap](https://openfreemap.org). **No API key, account or billing is needed.** MapLibre's native code isn't in Expo Go, so real maps only show in a development build or the APK.
 
 The app switches to a built-in **schematic map** when any of these is true:
-- it is running on web;
+- it is running on web or in Expo Go;
 - "Use schematic map" is on in Account → Demo settings;
 - the native map throws an error.
 
