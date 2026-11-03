@@ -1,6 +1,7 @@
 import { router } from 'expo-router';
 import React, { useMemo } from 'react';
 import { FlatList, StyleSheet, View } from 'react-native';
+import { GuestPrompt } from '@/components/layout/GuestPrompt';
 import { AppText, Avatar, Button, EmptyState, Screen, ScreenHeader, VerificationBadge } from '@/components/ui';
 import { useCallDriver } from '@/hooks/useCallDriver';
 import { formatPhone, relativeTime } from '@/lib/format';
@@ -10,7 +11,7 @@ import { colors, radius, spacing } from '@/theme';
 
 export default function RecentContacts() {
   const { data } = useAppData();
-  const { profile } = useSession();
+  const { profile, isGuest } = useSession();
   const call = useCallDriver();
 
   const rows = useMemo(() => {
@@ -32,14 +33,20 @@ export default function RecentContacts() {
         data={rows}
         keyExtractor={(r) => r.driver.id}
         contentContainerStyle={rows.length ? styles.list : styles.emptyList}
-        ListEmptyComponent={
+        ListEmptyComponent={isGuest ? (
+          <GuestPrompt
+            icon="time"
+            title="Keep a list of drivers you call"
+            body="Guests can call drivers, but calls aren’t saved. With an account, drivers you call show here so you can reach them again."
+          />
+        ) : (
           <EmptyState
             icon="call"
             title="No calls yet"
             body="When you call a driver, they’ll appear here so you can reach them again quickly."
             action={{ label: 'Find a driver', onPress: () => router.navigate('/home') }}
           />
-        }
+        )}
         renderItem={({ item: { driver, contact } }) => {
           const reachable = driver.isAvailable && driver.accountStatus === 'active' && driver.verificationStatus === 'approved';
           return (

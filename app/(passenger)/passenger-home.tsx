@@ -3,6 +3,7 @@ import React, { useMemo } from 'react';
 import { Pressable, ScrollView, StyleSheet, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { DriverCard } from '@/components/drivers/DriverCard';
+import { useAccountLinks } from '@/components/layout/GuestPrompt';
 import { AppText, Avatar, Button, Card, Icon, IconName, OfflineBanner, Section } from '@/components/ui';
 import { demoPlaceName } from '@/data/mock';
 import { filterNearbyDrivers } from '@/features/discovery/filterDrivers';
@@ -30,7 +31,8 @@ function Shortcut({ icon, label, badge, onPress, testID }: { icon: IconName; lab
 
 /** Passenger start page: a greeting, drivers close by right now, and shortcuts to the rest of the app. */
 export default function PassengerStart() {
-  const { profile } = useSession();
+  const { profile, isGuest } = useSession();
+  const { createAccount } = useAccountLinks();
   const { data } = useAppData();
   const { state } = useUserLocation();
   const call = useCallDriver();
@@ -95,6 +97,14 @@ export default function PassengerStart() {
           )}
         </Section>
 
+        {isGuest ? (
+          <Card style={styles.guest} testID="home-guest-card">
+            <AppText variant="bodyStrong">You’re browsing as a guest</AppText>
+            <AppText color="textMuted">You can find and call drivers now. Create a free account to message drivers, report problems and keep your call history.</AppText>
+            <Button label="Create a free account" icon="person-add" variant="secondary" onPress={createAccount} />
+          </Card>
+        ) : null}
+
         <Card tone="tint" style={styles.tip}>
           <Icon name="bulb" size={20} color="primary" />
           <AppText style={styles.flex} color="textMuted">
@@ -113,6 +123,7 @@ const styles = StyleSheet.create({
   flex: { flex: 1 },
   place: { flexDirection: 'row', alignItems: 'center', gap: 4, marginTop: 2 },
   scroll: { padding: spacing.lg, gap: spacing.lg, width: '100%', maxWidth: 640, alignSelf: 'center' },
+  guest: { gap: spacing.sm },
   hero: { backgroundColor: colors.primaryPressed, borderColor: colors.primaryPressed, gap: spacing.xs },
   shortcuts: { flexDirection: 'row', gap: spacing.sm },
   shortcut: { flex: 1, alignItems: 'center', gap: spacing.xs, paddingVertical: spacing.md, borderRadius: radius.lg, borderWidth: 1, borderColor: colors.border },

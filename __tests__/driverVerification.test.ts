@@ -19,6 +19,15 @@ describe('landing route', () => {
     expect(resolveHomeRoute({ session: null, profile: null, activeRole: null, flags })).toBe('/welcome');
     expect(resolveHomeRoute({ session: null, profile: null, activeRole: null, flags: { ...flags, onboardingComplete: false } })).toBe('/welcome');
   });
+
+  it('sends guests to nearby drivers, asking for location first', () => {
+    expect(resolveHomeRoute({ session: null, profile: null, activeRole: null, flags: { ...flags, guest: true } })).toBe('/home');
+    expect(resolveHomeRoute({ session: null, profile: null, activeRole: null, flags: { ...flags, guest: true, locationPromptSeen: false } })).toBe('/location-permission');
+  });
+
+  it('ignores a leftover guest flag once someone is signed in', () => {
+    expect(resolveHomeRoute({ session, profile: null, activeRole: null, flags: { ...flags, guest: true } })).toBe('/role-select');
+  });
 });
 
 describe('driver documents requirement', () => {

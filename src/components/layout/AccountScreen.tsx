@@ -7,17 +7,75 @@ import {
 import { demoPlaceName } from '@/data/mock';
 import { formatPhone } from '@/lib/format';
 import { canUseRole, useSession } from '@/state/SessionProvider';
+import { useAccountLinks } from './GuestPrompt';
 import { useSettings } from '@/state/SettingsProvider';
 import { spacing } from '@/theme';
 
 const ROLE_LABEL = { passenger: 'Passenger', driver: 'Driver', both: 'Passenger and driver' } as const;
 
+function DemoSettings({ district }: { district?: string }) {
+  const { settings, updateSettings } = useSettings();
+  return (
+    <Section title="Demo settings">
+      <SwitchRow icon="pin" title={`Use ${demoPlaceName(district)} demo location`} subtitle="Centre discovery on your district’s main town instead of your device" value={settings.useDemoLocation} onValueChange={(v) => updateSettings({ useDemoLocation: v })} />
+      <Divider />
+      <SwitchRow icon="map" title="Use schematic map" subtitle="Skip the map provider, e.g. without an API key" value={settings.preferFallbackMap} onValueChange={(v) => updateSettings({ preferFallbackMap: v })} />
+      <Divider />
+      <SwitchRow icon="bug" title="Simulate load errors" subtitle="Show the error state when drivers load" value={settings.simulateLoadErrors} onValueChange={(v) => updateSettings({ simulateLoadErrors: v })} />
+      <SimulatedNote>These switches exist to demonstrate app states. They would not appear in a released app.</SimulatedNote>
+    </Section>
+  );
+}
+
+function GuestAccount() {
+  const { leaveGuestMode } = useSession();
+  const { createAccount, signIn } = useAccountLinks();
+  return (
+    <Screen scroll>
+      <ScreenHeader title="Account" />
+      <Card style={styles.profile}>
+        <Avatar name="Guest" size={60} />
+        <View style={styles.flex}>
+          <AppText variant="heading">Browsing as a guest</AppText>
+          <AppText color="textMuted">Find and call drivers without an account.</AppText>
+        </View>
+      </Card>
+
+      <Section title="Your account" style={styles.first}>
+        <ListRow icon="person-add" title="Create a free account" subtitle="Message drivers, report problems and keep your call history" onPress={createAccount} />
+        <Divider />
+        <ListRow icon="log-in" title="Sign in" subtitle="Already registered on this device" onPress={signIn} />
+      </Section>
+
+      <Section title="Help">
+        <ListRow icon="lock-closed" title="Privacy & location" subtitle="Permissions and data on this device" onPress={() => router.push('/privacy')} />
+        <Divider />
+        <ListRow icon="shield-checkmark" title="Safety" subtitle="Riding tips and how to report a driver" onPress={() => router.push('/safety')} />
+      </Section>
+
+      <DemoSettings />
+
+      <Section>
+        <ListRow
+          icon="exit"
+          title="Leave guest mode"
+          subtitle="Back to the welcome screen"
+          onPress={() => {
+            leaveGuestMode();
+            router.replace('/');
+          }}
+        />
+      </Section>
+    </Screen>
+  );
+}
+
 /** Profile & settings, shared by passenger and driver modes. */
 export function AccountScreen() {
-  const { profile, activeRole, switchRole, signOut } = useSession();
-  const { settings, updateSettings } = useSettings();
+  const { profile, activeRole, isGuest, switchRole, signOut } = useSession();
   const toast = useToast();
   const [confirmSignOut, setConfirmSignOut] = useState(false);
+  if (isGuest) return <GuestAccount />;
   if (!profile) return null;
 
   const canSwitch = profile.rolePreference === 'both';
@@ -67,14 +125,7 @@ export function AccountScreen() {
         <ListRow icon="shield-checkmark" title="Safety" subtitle="Riding tips and how to report a driver" onPress={() => router.push('/safety')} />
       </Section>
 
-      <Section title="Demo settings">
-        <SwitchRow icon="pin" title={`Use ${demoPlaceName(profile.district)} demo location`} subtitle="Centre discovery on your district’s main town instead of your device" value={settings.useDemoLocation} onValueChange={(v) => updateSettings({ useDemoLocation: v })} />
-        <Divider />
-        <SwitchRow icon="map" title="Use schematic map" subtitle="Skip the map provider, e.g. without an API key" value={settings.preferFallbackMap} onValueChange={(v) => updateSettings({ preferFallbackMap: v })} />
-        <Divider />
-        <SwitchRow icon="bug" title="Simulate load errors" subtitle="Show the error state when drivers load" value={settings.simulateLoadErrors} onValueChange={(v) => updateSettings({ simulateLoadErrors: v })} />
-        <SimulatedNote>These switches exist to demonstrate app states. They would not appear in a released app.</SimulatedNote>
-      </Section>
+      <DemoSettings district={profile.district} />
 
       <Section>
         <ListRow icon="log-out" title="Sign out" destructive onPress={() => setConfirmSignOut(true)} />

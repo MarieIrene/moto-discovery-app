@@ -1,16 +1,18 @@
 import { router, useLocalSearchParams } from 'expo-router';
-import React from 'react';
+import React, { useState } from 'react';
 import { StyleSheet, View } from 'react-native';
 import {
-  AppText, AvailabilityBadge, Avatar, Button, Card, EmptyState, Icon, IconName, ListRow, Screen, ScreenHeader, Section, SimulatedNote, VerificationBadge,
+  AppText, AvailabilityBadge, Avatar, Button, Card, ConfirmDialog, EmptyState, Icon, IconName, ListRow, Screen, ScreenHeader, Section, SimulatedNote, VerificationBadge,
 } from '@/components/ui';
 import { LiveMap } from '@/components/drivers/LiveMap';
+import { useAccountLinks } from '@/components/layout/GuestPrompt';
 import { isDiscoverable } from '@/features/discovery/filterDrivers';
 import { useCallDriver } from '@/hooks/useCallDriver';
 import { useUserLocation } from '@/hooks/useUserLocation';
 import { formatPhone, relativeTime } from '@/lib/format';
 import { distanceKm, estimateMinutes, formatDistance } from '@/lib/geo';
 import { useAppData } from '@/state/appData/AppDataProvider';
+import { useSession } from '@/state/SessionProvider';
 import { colors, radius, spacing } from '@/theme';
 
 function Fact({ icon, label, value }: { icon: IconName; label: string; value: string }) {
@@ -28,6 +30,9 @@ export default function DriverProfile() {
   const { data } = useAppData();
   const { state } = useUserLocation();
   const call = useCallDriver();
+  const { isGuest } = useSession();
+  const { createAccount } = useAccountLinks();
+  const [accountNeededFor, setAccountNeededFor] = useState<'message' | 'report' | null>(null);
   const driver = data.drivers.find((d) => d.id === id);
 
   if (!driver || !isDiscoverable(driver)) {
@@ -55,7 +60,9 @@ export default function DriverProfile() {
                 size="lg"
                 variant="secondary"
                 fullWidth
-                onPress={() => router.push({ pathname: '/chat/[peerId]', params: { peerId: driver.id } })}
+                onPress={() => (isGuest
+                  ? setAccountNeededFor('message')
+                  : router.push({ pathname: '/chat/[peerId]', params: { peerId: driver.id } }))}
                 accessibilityHint="Opens a chat with this driver"
                 testID="message-driver"
               />
@@ -73,7 +80,7 @@ export default function DriverProfile() {
               />
             </View>
           </View>
-          {!driver.isAvailable ? <AppText variant="caption" color="textMuted" align="center">Offline drivers may not answer calls. Send a message instead. Last active {relativeTime(driver.lastActiveAt)}.</AppText> : null}
+          {!driver.isAvailable ? <AppText variant="caption" color="textMuted" align="center">Offline drivers may not answer calls.{isGuest ? '' : ' Send a message instead.'} Last active {relativeTime(driver.lastActiveAt)}.</AppText> : null}
         </>
       }
     >
@@ -129,11 +136,25 @@ export default function DriverProfile() {
       </Section>
 
       <Section>
-        <ListRow icon="flag" title="Report this driver" subtitle="Tell us about unsafe riding or other problems" onPress={() => router.push({ pathname: '/report/[driverId]', params: { driverId: driver.id } })} destructive />
+        <ListRow icon="flag" title="Report this driver" subtitle="Tell us about unsafe riding or other problems" onPress={() => (isGuest ? setAccountNeededFor('report') : router.push({ pathname: '/report/[driverId]', params: { driverId: driver.id } }))} destructive />
         <ListRow icon="shield-checkmark" title="Safety tips" onPress={() => router.push('/safety')} />
       </Section>
 
       <SimulatedNote>Verification status and availability are demo data on this device, not live information.</SimulatedNote>
+
+      <ConfirmDialog
+        visible={!!accountNeededFor}
+        title={accountNeededFor === 'report' ? 'Create an account to report' : 'Create an account to message'}
+        message={accountNeededFor === 'report'
+          ? 'Reports are linked to an account so the platform team can follow up with you. It’s free and takes a minute.'
+          : `Drivers need to know who is writing to them. It’s free and takes a minute. You can call ${driver.fullName.split(' ')[0]} now without one.`}
+        confirmLabel="Create account"
+        onCancel={() => setAccountNeededFor(null)}
+        onConfirm={() => {
+          setAccountNeededFor(null);
+          createAccount();
+        }}
+      />
     </Screen>
   );
 }

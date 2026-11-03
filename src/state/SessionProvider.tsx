@@ -26,6 +26,8 @@ interface PendingAuth {
 interface DeviceFlags {
   onboardingComplete: boolean;
   locationPromptSeen: boolean;
+  /** Browsing as a passenger without an account. Cleared when anyone signs in. */
+  guest?: boolean;
 }
 
 type ConfirmResult = { ok: true } | { ok: false; message: string };
@@ -36,10 +38,14 @@ interface SessionContextValue {
   profile: StoredProfile | null;
   activeRole: AppRole | null;
   flags: DeviceFlags;
+  /** No account: can find, view and call drivers, but not message, report or keep a call history. */
+  isGuest: boolean;
   pendingAuth: PendingAuth | null;
   draftRole: RolePreference | null;
   completeOnboarding: () => void;
   markLocationPromptSeen: () => void;
+  continueAsGuest: () => void;
+  leaveGuestMode: () => void;
   beginAuth: (input: { mode: PendingAuth['mode']; phone: string; password: string; fullName?: string }) => Promise<ConfirmResult>;
   signIn: (phone: string, password: string) => Promise<ConfirmResult>;
   resendOtp: () => Promise<void>;
@@ -129,10 +135,11 @@ export function SessionProvider({ children }: { children: React.ReactNode }) {
     const nextSession: Session = { userId, phone, token, signedInAt: new Date().toISOString(), isAdmin: false };
     await writeSecureJson(SECURE_KEYS.session, nextSession);
     const match = await loadProfile(userId);
+    saveFlags({ guest: false });
     setSession(nextSession);
     setProfile(match);
     setRole(match ? ROLE_FOR_PREFERENCE[match.rolePreference] : null);
-  }, [setRole]);
+  }, [setRole, saveFlags]);
 
   const beginAuth = useCallback<SessionContextValue['beginAuth']>(async ({ mode, phone, password, fullName }) => {
     const registered = await auth.isPhoneRegistered(phone);
@@ -225,12 +232,13 @@ export function SessionProvider({ children }: { children: React.ReactNode }) {
       if (!result.ok) return result;
       const next: Session = { userId: DEMO_ADMIN.id, phone: '', token: result.token, signedInAt: new Date().toISOString(), isAdmin: true };
       await writeSecureJson(SECURE_KEYS.session, next);
+      saveFlags({ guest: false });
       setSession(next);
       setProfile(null);
       setActiveRole('admin');
       return { ok: true };
     },
-    [],
+    [saveFlags],
   );
 
   const signOut = useCallback(async () => {
@@ -255,16 +263,20 @@ export function SessionProvider({ children }: { children: React.ReactNode }) {
     setActiveRole(null);
   }, [session]);
 
+  const isGuest = !session && !!flags.guest;
+
   const value = useMemo<SessionContextValue>(
     () => ({
-      ready, session, profile, activeRole, flags, pendingAuth, draftRole,
+      ready, session, profile, activeRole: isGuest ? 'passenger' : activeRole, flags, isGuest, pendingAuth, draftRole,
       completeOnboarding: () => saveFlags({ onboardingComplete: true }),
       markLocationPromptSeen: () => saveFlags({ locationPromptSeen: true }),
+      continueAsGuest: () => saveFlags({ guest: true }),
+      leaveGuestMode: () => saveFlags({ guest: false }),
       beginAuth, signIn, resendOtp, confirmOtp,
       chooseRole: setDraftRole,
       completeProfile, updateProfile, switchRole, signInAdmin, signOut, deleteLocalAccount,
     }),
-    [ready, session, profile, activeRole, flags, pendingAuth, draftRole, saveFlags, beginAuth, signIn, resendOtp, confirmOtp, completeProfile, updateProfile, switchRole, signInAdmin, signOut, deleteLocalAccount],
+    [ready, session, profile, activeRole, flags, isGuest, pendingAuth, draftRole, saveFlags, beginAuth, signIn, resendOtp, confirmOtp, completeProfile, updateProfile, switchRole, signInAdmin, signOut, deleteLocalAccount],
   );
 
   return <SessionContext.Provider value={value}>{children}</SessionContext.Provider>;
@@ -285,8 +297,11 @@ export function useActorName(): string {
 
 /** Where the root index should send the user, given current session state. */
 export function resolveHomeRoute(s: Pick<SessionContextValue, 'session' | 'profile' | 'activeRole' | 'flags'>): string {
-  // Signed-out users always land on the hero page, which links to sign-in and registration.
-  if (!s.session) return '/welcome';
+  // Signed-out users land on the hero page, which links to sign-in, registration and guest mode.
+  if (!s.session) {
+    if (!s.flags.guest) return '/welcome';
+    return s.flags.locationPromptSeen ? '/home' : '/location-permission';
+  }
   if (s.session.isAdmin) return '/admin-dashboard';
   if (!s.profile) return '/role-select';
   if (needsDriverDocuments(s.profile)) return '/driver-verification';

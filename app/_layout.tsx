@@ -49,6 +49,8 @@ function RootNavigator() {
   const setupDone = !!session.profile && !needsDriverDocuments(session.profile) && session.flags.locationPromptSeen;
   const needsSetup = !!s && !isAdmin && !setupDone;
   const isUser = !!s && !isAdmin && setupDone;
+  // Guests browse as passengers with no account; they only see the location prompt as setup.
+  const guestSetupDone = session.isGuest && session.flags.locationPromptSeen;
 
   return (
     <Stack screenOptions={{ headerShown: false, contentStyle: { backgroundColor: colors.background } }}>
@@ -56,23 +58,25 @@ function RootNavigator() {
       <Stack.Protected guard={!s}>
         <Stack.Screen name="(auth)" />
       </Stack.Protected>
-      <Stack.Protected guard={needsSetup}>
+      <Stack.Protected guard={needsSetup || (session.isGuest && !session.flags.locationPromptSeen)}>
         <Stack.Screen name="(setup)" />
       </Stack.Protected>
-      <Stack.Protected guard={isUser && session.activeRole === 'passenger'}>
+      <Stack.Protected guard={(isUser && session.activeRole === 'passenger') || guestSetupDone}>
         <Stack.Screen name="(passenger)" />
       </Stack.Protected>
       <Stack.Protected guard={isUser && session.activeRole === 'driver'}>
         <Stack.Screen name="(driver)" />
       </Stack.Protected>
-      <Stack.Protected guard={isUser}>
+      <Stack.Protected guard={isUser || guestSetupDone}>
         <Stack.Screen name="driver/[id]" />
+      </Stack.Protected>
+      <Stack.Protected guard={isUser}>
         <Stack.Screen name="chat/[peerId]" />
         <Stack.Screen name="passenger/[id]" />
         <Stack.Screen name="report/[driverId]" options={{ presentation: 'modal' }} />
         <Stack.Screen name="edit-profile" />
       </Stack.Protected>
-      <Stack.Protected guard={isUser || isAdmin}>
+      <Stack.Protected guard={isUser || isAdmin || guestSetupDone}>
         <Stack.Screen name="safety" />
         <Stack.Screen name="privacy" />
       </Stack.Protected>

@@ -5,6 +5,7 @@ import { Animated, Easing, Platform, Pressable, ScrollView, StyleSheet, View } f
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { HERO_SLIDES, HeroSlideshow, SLIDE_MS } from '@/components/landing/HeroSlideshow';
 import { AppText, Button, Icon, IconName } from '@/components/ui';
+import { useSession } from '@/state/SessionProvider';
 import { colors, radius, spacing } from '@/theme';
 
 const useNativeDriver = Platform.OS !== 'web';
@@ -82,6 +83,7 @@ function RideRoute() {
 }
 
 export default function Welcome() {
+  const { continueAsGuest } = useSession();
   const [slide, setSlide] = useState(0);
 
   // Light status bar over the dark photos; the rest of the app uses dark on white.
@@ -168,6 +170,19 @@ export default function Welcome() {
               onPress={() => router.push('/sign-in')}
               testID="welcome-get-started"
             />
+            <Pressable
+              onPress={() => {
+                continueAsGuest();
+                router.replace('/');
+              }}
+              style={({ pressed }) => [styles.guestButton, pressed && styles.guestButtonPressed]}
+              accessibilityRole="button"
+              accessibilityHint="Find and call drivers without creating an account"
+              testID="welcome-continue-as-guest"
+            >
+              <Icon name="person-outline" size={18} color="onPrimary" />
+              <AppText variant="label" color="onPrimary">Continue as guest</AppText>
+            </Pressable>
             <Pressable onPress={() => router.push('/admin-sign-in')} accessibilityRole="link" style={styles.adminLink} hitSlop={8}>
               <Icon name="shield-half" size={14} color="onPrimaryMuted" />
               <AppText variant="small" color="onPrimaryMuted">Admin demo access</AppText>
@@ -224,5 +239,10 @@ const styles = StyleSheet.create({
   dots: { flexDirection: 'row', gap: 6 },
   dot: { width: 8, height: 8, borderRadius: 4, backgroundColor: 'rgba(255,255,255,0.4)' },
   dotActive: { width: 24, backgroundColor: colors.background },
+  guestButton: {
+    flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: spacing.sm, minHeight: 52,
+    borderRadius: radius.md, backgroundColor: GLASS, borderWidth: 1, borderColor: GLASS_BORDER,
+  },
+  guestButtonPressed: { backgroundColor: GLASS_BORDER },
   adminLink: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: spacing.xs, minHeight: 40 },
 });
