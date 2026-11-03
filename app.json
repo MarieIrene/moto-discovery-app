@@ -2,7 +2,7 @@
   "expo": {
     "name": "Moto Discovery",
     "slug": "motor-discovery",
-    "version": "1.0.0",
+    "version": "1.1.0",
     "orientation": "portrait",
     "scheme": "motodiscovery",
     "userInterfaceStyle": "light",
@@ -52,7 +52,8 @@
         "expo-camera",
         {
           "cameraPermission": "Moto Discovery uses the camera to take your registration selfie and photos of your ID and driving permit.",
-          "recordAudioAndroid": false
+          "recordAudioAndroid": false,
+          "barcodeScannerEnabled": false
         }
       ],
       [
